@@ -26,6 +26,7 @@ export const urls = {
   // Backend user-related routes
   watchlist: `${BACKEND_BASE_URL}/watchlist`,
   favourites: `${BACKEND_BASE_URL}/favourites`,
+    profile: `${BACKEND_BASE_URL}/profile`,
 
   // Backend auth-related routes
   login: `${AUTH_BASE_URL}/login`,

@@ -1,110 +1,159 @@
-// controllers/userController.js
 const User = require("../models/User");
 
 // Get watchlist
 const getWatchlist = async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+    try {
+        const user = await User.findById(req.user.id);
+        if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
-    res.json({ success: true, watchlist: user.watchlist });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
+        res.json({ success: true, watchlist: user.watchlist });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
 };
 
 // Add to watchlist
 const addToWatchlist = async (req, res) => {
-  try {
-    const { movie } = req.body;
-    const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+    try {
+        const { movie } = req.body;
+        const user = await User.findById(req.user.id);
+        if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
-    // Prevent duplicates
-    if (user.watchlist.some(m => m.id === movie.id)) {
-      return res.status(400).json({ success: false, message: "Movie already in watchlist" });
+        // Prevent duplicates
+        if (user.watchlist.some(m => m.id === movie.id)) {
+            return res.status(400).json({ success: false, message: "Movie already in watchlist" });
+        }
+
+        user.watchlist.push(movie);
+        await user.save();
+
+        res.json({ success: true, watchlist: user.watchlist });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
     }
-
-    user.watchlist.push(movie);
-    await user.save();
-
-    res.json({ success: true, watchlist: user.watchlist });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
 };
-// remove watchlist 
 
-
+// Remove from watchlist
 const removeFromWatchlist = async (req, res) => {
-  try {
-    const { movieId } = req.params;
-    const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+    try {
+        const { movieId } = req.params;
+        const user = await User.findById(req.user.id);
+        if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
-    const initialLength = user.watchlist.length;
-    user.watchlist = user.watchlist.filter(m => String(m.id) !== String(movieId));
+        const initialLength = user.watchlist.length;
+        user.watchlist = user.watchlist.filter(m => String(m.id) !== String(movieId));
 
-    if (user.watchlist.length === initialLength) {
-      return res.status(404).json({ success: false, message: "Movie not found in watchlist" });
+        if (user.watchlist.length === initialLength) {
+            return res.status(404).json({ success: false, message: "Movie not found in watchlist" });
+        }
+
+        await user.save();
+        res.json({ success: true, watchlist: user.watchlist });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
     }
-
-    await user.save();
-    res.json({ success: true, watchlist: user.watchlist });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
 };
 
 // Get favourites
 const getFavourites = async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-    res.json({ success: true, favourites: user.favourites });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
+    try {
+        const user = await User.findById(req.user.id);
+        res.json({ success: true, favourites: user.favourites });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
 };
 
 // Add to favourites
 const addToFavourites = async (req, res) => {
-  try {
-    const { movie } = req.body; // { id, title, poster, etc. }
-    const user = await User.findById(req.user.id);
+    try {
+        const { movie } = req.body; // { id, title, poster, etc. }
+        const user = await User.findById(req.user.id);
 
-    // Prevent duplicates
-    if (!user.favourites.some(m => m.id === movie.id)) {
-      user.favourites.push(movie);
-      await user.save();
+        // Prevent duplicates
+        if (!user.favourites.some(m => m.id === movie.id)) {
+            user.favourites.push(movie);
+            await user.save();
+        }
+
+        res.json({ success: true, favourites: user.favourites });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
     }
-
-    res.json({ success: true, favourites: user.favourites });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
 };
 
 // Remove from favourites
 const removeFromFavourites = async (req, res) => {
-  try {
-    const { movieId } = req.params;
-    const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+    try {
+        const { movieId } = req.params;
+        const user = await User.findById(req.user.id);
+        if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
-    user.favourites = user.favourites.filter(m => String(m.id) !== String(movieId));
-    await user.save();
+        user.favourites = user.favourites.filter(m => String(m.id) !== String(movieId));
+        await user.save();
 
-    res.json({ success: true, favourites: user.favourites });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
+        res.json({ success: true, favourites: user.favourites });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+// ** Get Profile **
+const getProfile = async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id).select("name email uid");
+        if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+        res.json({
+            success: true,
+            profile: {
+                name: user.name,
+                email: user.email,
+                uid: user.uid,
+
+            },
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+// ** Update Profile (e.g., username) **
+const updateProfile = async (req, res) => {
+    try {
+        const { name } = req.body;
+        if (!name || name.trim() === "") {
+            return res.status(400).json({ success: false, message: "Name cannot be empty" });
+        }
+
+        const user = await User.findByIdAndUpdate(
+            req.user.id,
+            { name: name.trim() },
+            { new: true, runValidators: true }
+        ).select("name email _id");
+
+        if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+        res.json({
+            success: true,
+            profile: {
+                name: user.name,
+                email: user.email,
+                uid: user._id.toString(),
+            },
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
 };
 
 module.exports = {
-  getWatchlist,
-  addToWatchlist,
-  removeFromWatchlist,
-  getFavourites,
-  addToFavourites,
-  removeFromFavourites
+    getWatchlist,
+    addToWatchlist,
+    removeFromWatchlist,
+    getFavourites,
+    addToFavourites,
+    removeFromFavourites,
+    getProfile,
+    updateProfile,
 };

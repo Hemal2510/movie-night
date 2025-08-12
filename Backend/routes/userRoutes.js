@@ -8,6 +8,8 @@ const {
   getFavourites,
   addToFavourites,
   removeFromFavourites,
+    getProfile,
+    updateProfile,
 } = require("../controllers/userController");
 
 // All routes below require a valid token
@@ -18,5 +20,9 @@ router.delete("/watchlist/:movieId", authMiddleware, removeFromWatchlist);
 router.get("/favourites", authMiddleware, getFavourites);
 router.post("/favourites", authMiddleware, addToFavourites);
 router.delete("/favourites/:movieId", authMiddleware, removeFromFavourites);
+
+router.get("/profile", authMiddleware, getProfile);
+router.put("/profile", authMiddleware, updateProfile);
+
 
 module.exports = router;
