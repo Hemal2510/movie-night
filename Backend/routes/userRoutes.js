@@ -10,6 +10,10 @@ const {
   removeFromFavourites,
     getProfile,
     updateProfile,
+    changePassword,
+    sendResetOtp,
+    resetPassword,
+    verifyOTP
 } = require("../controllers/userController");
 
 // All routes below require a valid token
@@ -23,6 +27,11 @@ router.delete("/favourites/:movieId", authMiddleware, removeFromFavourites);
 
 router.get("/profile", authMiddleware, getProfile);
 router.put("/profile", authMiddleware, updateProfile);
+
+router.put("/change-password", authMiddleware, changePassword);
+router.post("/send-reset-otp", sendResetOtp); // request OTP
+router.post("/reset-password", resetPassword); // submit OTP + new password
+router.post('/verify-otp', verifyOTP);
 
 
 module.exports = router;
