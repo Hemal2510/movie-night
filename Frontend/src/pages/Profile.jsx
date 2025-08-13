@@ -13,6 +13,8 @@ import { motion, useInView } from "framer-motion";
 import axios from "axios";
 import { useAuth } from "@/context/AuthContext";
 import { urls } from "@/lib/api";
+import { useNavigate } from "react-router-dom";
+
 
 function MovieCard({
                        movie,
@@ -35,6 +37,8 @@ function MovieCard({
             whileTap={{ scale: 0.95 }}
             className="flex items-center space-x-4 py-2 border-b border-yellow-400 cursor-pointer"
         >
+
+
             <img
                 src={`https://image.tmdb.org/t/p/w200${movie.poster_path}`}
                 alt={movie.title}
@@ -121,6 +125,8 @@ export default function ProfilePage() {
 
     const [loading, setLoading] = useState(true);
     const [savingUsername, setSavingUsername] = useState(false);
+
+    const navigate = useNavigate();
 
     // Fetch profile & lists
     useEffect(() => {
@@ -281,7 +287,36 @@ export default function ProfilePage() {
         );
 
     return (
-        <div className="min-h-screen bg-black text-white max-w-5xl mx-auto p-6 space-y-8">
+        <>
+            {/* Navbar */}
+            <header className="flex justify-between items-center px-6 py-4 bg-black/70 backdrop-blur-sm shadow-md sticky top-0 z-50">
+                <h1
+                    className="text-2xl font-bold cursor-pointer"
+                    onClick={() => navigate("/home")}
+                >
+                    🍿 Movie Night
+                </h1>
+                <nav className="flex gap-6 items-center text-base">
+                    {[
+                        { label: "Home", route: "/home" },
+                        { label: "Discover", route: "/discover" },
+                        { label: "Watchlist", route: "/watchlist" },
+                        { label: "Favourites", route: "/favourite" },
+                        { label: "Planner", route: "/planner" },
+                    ].map(({ label, route }) => (
+                        <button
+                            key={label}
+                            onClick={() => navigate(route)}
+                            className="hover:text-yellow-400 transition-colors duration-200"
+                        >
+                            {label}
+                        </button>
+                    ))}
+                </nav>
+            </header>
+
+
+            <div className="min-h-screen bg-black text-white max-w-5xl mx-auto p-6 space-y-8">
             {/* Top: User Details */}
             <div className="flex flex-col items-center text-center space-y-4">
                 <div className="relative">
@@ -471,5 +506,6 @@ export default function ProfilePage() {
                 </Button>
             </div>
         </div>
+            </>
     );
 }

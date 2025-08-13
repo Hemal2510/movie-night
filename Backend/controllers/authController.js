@@ -25,46 +25,64 @@ function generateUID() {
 
 
 const signup = async (req, res) => {
-  const { name, email, password } = req.body;
+    const { name, email, password } = req.body;
 
-  try {
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "User already exists" 
-      });
+    try {
+        const existingUser = await User.findOne({ email });
+        if (existingUser) {
+            return res.status(400).json({
+                success: false,
+                message: "User already exists"
+            });
+        }
+
+        // Hash password
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Generate unique UID
+        let uid;
+        let uidExists = true;
+        while (uidExists) {
+            uid = generateUID();
+            const existingUID = await User.findOne({ uid });
+            if (!existingUID) uidExists = false;
+        }
+
+        // Create user with empty watchlist & favourites
+        const newUser = await User.create({
+            name,
+            email,
+            password: hashedPassword,
+            uid,
+            watchlist: [],
+            favourites: []
+        });
+
+        // ✅ Generate JWT token like in login
+        const token = jwt.sign(
+            { id: newUser._id },
+            process.env.JWT_SECRET,
+            { expiresIn: "1h" }
+        );
+
+        // ✅ Return token & user so frontend can store it immediately
+        res.status(201).json({
+            success: true,
+            message: "User registered successfully",
+            token,
+            user: {
+                id: newUser._id,
+                name: newUser.name,
+                email: newUser.email,
+                uid: newUser.uid,
+                watchlist: newUser.watchlist,
+                favourites: newUser.favourites
+            }
+        });
+
+    } catch (err) {
+        res.status(500).json({ success: false, message: "Signup failed", error: err.message });
     }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Generate unique UID
-    let uid;
-    let uidExists = true;
-    while (uidExists) {
-      uid = generateUID();
-      const existingUID = await User.findOne({ uid });
-      if (!existingUID) uidExists = false;
-    }
-
-    // Create user
-    const newUser = await User.create({
-      name,
-      email,
-      password: hashedPassword,
-      uid
-    });
-
-    res.status(201).json({
-      success: true,
-      message: "User registered successfully",
-      user: { id: newUser._id, name: newUser.name, email: newUser.email, uid: newUser.uid }
-    });
-
-  } catch (err) {
-    res.status(500).json({ success: false, message: "Signup failed", error: err.message });
-  }
 };
 
 
