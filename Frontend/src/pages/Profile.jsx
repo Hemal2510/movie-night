@@ -16,6 +16,7 @@ import { urls } from "@/lib/api";
 import { useNavigate } from "react-router-dom";
 
 
+
 function MovieCard({
                        movie,
                        onAddToWatchlist,
@@ -306,63 +307,119 @@ export default function ProfilePage() {
             <div className="text-white p-8 text-center">Loading profile...</div>
         );
 
+    // Change password using old password
     const handleChangePasswordOld = async () => {
-        if (!oldPassword || !newPassword) return;
+        if (!oldPassword || !newPassword) return alert("Enter both old and new password");
+        console.log({ oldPassword, newPassword, token });
         setChangingPassword(true);
         try {
-            await axios.put(`${urls.profile}/change-password`, {
-                oldPassword,
-                newPassword
-            }, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await axios.put(
+                urls.changePassword,
+                { oldPassword, newPassword },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            console.log("Password change response:", res.data);
             alert("Password changed successfully!");
             setOldPassword("");
             setNewPassword("");
             setShowChangePassword(false);
-        } catch (err) {
-            console.error(err);
-            alert("Failed to change password.");
+
+        } catch (error) {
+            console.error("Failed to change password", error.response?.data || error);
+            alert(error.response?.data?.message || "Failed to change password.");
         } finally {
             setChangingPassword(false);
         }
     };
 
+// Send OTP for password reset
     const handleSendOtp = async () => {
-        if (!otpEmail) return;
+        if (!email) {
+            alert("Please enter your email address.");
+            return;
+        }
+
         setSendingOtp(true);
+
         try {
-            await axios.post(`${urls.profile}/send-otp`, { email: otpEmail });
-            alert("OTP sent!");
+            const { data } = await axios.post(urls.sendResetOtp, { email });
+
+            if (data?.success) {
+                setOtpSent(true);             // ✅ unlocks the “enter OTP” field
+                alert("OTP sent! Check your inbox.");
+            } else {
+                alert(data?.message || "Could not send OTP. Please try again.");
+            }
         } catch (err) {
-            console.error(err);
-            alert("Failed to send OTP.");
+            console.error("sendResetOtp error:", err);      // keep the dev log
+            alert(err.response?.data?.message || "Server error. Try again later.");
         } finally {
             setSendingOtp(false);
         }
     };
 
-    const handleChangePasswordOtp = async () => {
-        if (!otpCode || !otpNewPassword) return;
-        setChangingPassword(true);
+
+
+// Verify OTP for password reset
+    const handleVerifyOtp = async () => {
+        if (!otpCode || otpCode.length !== 6) {
+            alert("Enter a valid 6-digit OTP code.");
+            return;
+        }
+
+        setVerifyingOtp(true);
         try {
-            await axios.put(`${urls.profile}/change-password-otp`, {
-                otp: otpCode,
-                newPassword: otpNewPassword
-            }, {
-                headers: { Authorization: `Bearer ${token}` }
+            const { data } = await axios.post(urls.verifyPasswordOtp, {
+                email: email,  // ✅ Use 'email' from profile, not 'otpEmail'
+                otp: otpCode.toString().trim(), // ✅ Ensure string format
             });
-            alert("Password changed successfully!");
-            setOtpCode("");
-            setOtpNewPassword("");
-            setShowChangePassword(false);
+
+            if (data?.success) {  // ✅ Just check for success
+                alert("OTP verified!");
+                setOtpVerified(true);
+            } else {
+                alert(data?.message || "Invalid or expired code.");
+            }
         } catch (err) {
-            console.error(err);
-            alert("Failed to change password.");
+            console.error("Failed to verify OTP:", err);
+            alert(err.response?.data?.message || "Server error—try again.");
         } finally {
-            setChangingPassword(false);
+            setVerifyingOtp(false);
         }
     };
+
+// Change password using OTP
+    const handleChangePasswordOtp = async () => {
+        if (!otpCode || !otpNewPassword) return;
+        try {
+            setChangingPassword(true);
+            const res = await axios.post(urls.resetPassword, {
+                email: email,
+                otp: otpCode,
+                newPassword: otpNewPassword,
+            });
+            if(res.data.success){
+                alert("Password changed successfully!");
+                // Reset all OTP-related states
+                setOtpCode("");
+                setOtpNewPassword("");
+                setOtpSent(false);
+                setOtpVerified(false);
+                setOtpEmail(""); // optional
+                setShowChangePassword(false)            }
+        } catch (error) {
+            console.error("Failed to reset password", error);
+            alert(error.response?.data?.message || "Failed to change password.");
+        } finally {
+            setChangingPassword(false);
+
+        }
+    };
+
+
+
+
+
 
 
     return (
@@ -458,6 +515,9 @@ export default function ProfilePage() {
                 </div>
 
 
+                {/* ───────────────────────────────────────────
+     CHANGE-PASSWORD (toggles with showChangePassword)
+──────────────────────────────────────────── */}
                 {showChangePassword && (
                     <Card className="bg-gray-900 border-yellow-400 mt-6 max-w-md mx-auto">
                         <CardContent>
@@ -465,17 +525,18 @@ export default function ProfilePage() {
                                 Change Password
                             </h3>
 
+                            {/* ---------- TABS ---------- */}
                             <Tabs defaultValue="oldPassword" className="w-full">
                                 <TabsList className="flex border-b border-yellow-400">
                                     <TabsTrigger value="oldPassword" className="text-yellow-400">
-                                        Old Password
+                                        Old&nbsp;Password
                                     </TabsTrigger>
                                     <TabsTrigger value="otp" className="text-yellow-400">
                                         OTP
                                     </TabsTrigger>
                                 </TabsList>
 
-                                {/* Old Password Form */}
+                                {/* —— OLD-PASSWORD FORM —— */}
                                 <TabsContent value="oldPassword" className="mt-4">
                                     <div className="flex flex-col space-y-3">
                                         <input
@@ -497,29 +558,34 @@ export default function ProfilePage() {
                                             onClick={handleChangePasswordOld}
                                             disabled={changingPassword}
                                         >
-                                            {changingPassword ? "Saving..." : "Change Password"}
+                                            {changingPassword ? "Saving…" : "Change Password"}
                                         </Button>
                                     </div>
                                 </TabsContent>
 
-                                {/* OTP Form */}
-                                <TabsContent value="otp" className="mt-4">
+                                {/* —— OTP FLOW —— */}
+                                <TabsContent value="otp" className="mt-4" forceMount>
                                     <div className="flex flex-col space-y-3">
-                                        {!otpSent ? (
+                                        {/* STEP 1 • send code */}
+                                        {!otpSent && (
                                             <Button
                                                 className="bg-yellow-400 text-black hover:bg-yellow-500"
                                                 onClick={handleSendOtp}
                                                 disabled={sendingOtp}
                                             >
-                                                {sendingOtp ? "Sending..." : "Send OTP to your email"}
+                                                {sendingOtp ? "Sending…" : "Send OTP to your email"}
                                             </Button>
-                                        ) : !otpVerified ? (
+                                        )}
+
+                                        {/* STEP 2 • verify code */}
+                                        {otpSent && !otpVerified && (
                                             <>
                                                 <input
                                                     type="text"
                                                     placeholder="Enter OTP"
                                                     value={otpCode}
                                                     onChange={(e) => setOtpCode(e.target.value)}
+                                                    maxLength={6}
                                                     className="border border-yellow-400 rounded px-2 py-1 bg-black text-yellow-400"
                                                 />
                                                 <div className="flex space-x-2">
@@ -528,18 +594,21 @@ export default function ProfilePage() {
                                                         onClick={handleVerifyOtp}
                                                         disabled={verifyingOtp}
                                                     >
-                                                        {verifyingOtp ? "Verifying..." : "Verify OTP"}
+                                                        {verifyingOtp ? "Verifying…" : "Verify OTP"}
                                                     </Button>
                                                     <Button
                                                         className="bg-gray-700 text-yellow-400 hover:bg-gray-600"
                                                         onClick={handleSendOtp}
                                                         disabled={sendingOtp}
                                                     >
-                                                        {sendingOtp ? "Resending..." : "Resend OTP"}
+                                                        {sendingOtp ? "Resending…" : "Resend OTP"}
                                                     </Button>
                                                 </div>
                                             </>
-                                        ) : (
+                                        )}
+
+                                        {/* STEP 3 • set new password */}
+                                        {otpVerified && (
                                             <>
                                                 <input
                                                     type="password"
@@ -553,18 +622,17 @@ export default function ProfilePage() {
                                                     onClick={handleChangePasswordOtp}
                                                     disabled={changingPassword}
                                                 >
-                                                    {changingPassword ? "Saving..." : "Change Password"}
+                                                    {changingPassword ? "Saving…" : "Change Password"}
                                                 </Button>
                                             </>
                                         )}
                                     </div>
                                 </TabsContent>
                             </Tabs>
+                            {/* ---------- /TABS ---------- */}
                         </CardContent>
                     </Card>
                 )}
-
-
 
 
 
