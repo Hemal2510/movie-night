@@ -17,6 +17,7 @@ const {
     // Profile
     getProfile,
     updateProfile,
+    deleteProfile,
 
     // Password Management
     changePassword,
@@ -44,7 +45,7 @@ router.delete("/favourites/:movieId", authMiddleware, removeFromFavourites);
 // =====================================================
 router.get("/profile", authMiddleware, getProfile);
 router.put("/profile", authMiddleware, updateProfile);
-
+router.delete("/profile", authMiddleware, deleteProfile);
 // =====================================================
 //              PASSWORD MANAGEMENT ROUTES
 // =====================================================

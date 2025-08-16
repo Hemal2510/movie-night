@@ -31,10 +31,13 @@ export const urls = {
     sendResetOtp: `${BACKEND_USER_URL}/send-reset-otp`,
     resetPassword: `${BACKEND_USER_URL}/reset-password`,
     verifyPasswordOtp: `${BACKEND_USER_URL}/verify-reset-otp`,
+    deleteAccount: `${BACKEND_USER_URL}/profile`,
+
 
     // Auth-related routes (login & signup)
     login: `${BACKEND_AUTH_URL}/login`,
     signup: `${BACKEND_AUTH_URL}/signup`,
     sendOTP: `${BACKEND_AUTH_URL}/send-otp`, // for login/signup
     verifyOTP: `${BACKEND_AUTH_URL}/verify-otp`, // for login/signup
+
 };

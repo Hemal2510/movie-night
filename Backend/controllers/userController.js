@@ -347,6 +347,25 @@ const changePasswordWithOtp = async (req, res) => {
     }
 };
 
+const deleteProfile = async (req, res) => {
+    try {
+        // Assuming user ID is available from auth middleware (e.g., req.user.id)
+        const userId = req.user.id;
+
+        // Find user by ID and delete from database
+        const deletedUser = await User.findByIdAndDelete(userId);
+
+        if (!deletedUser) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        res.status(200).json({ message: "User account deleted successfully" });
+    } catch (error) {
+        console.error("Error deleting user:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
 // Export all functions
 module.exports = {
     // Watchlist
@@ -362,6 +381,7 @@ module.exports = {
     // Profile
     getProfile,
     updateProfile,
+    deleteProfile,
 
     // Password Management
     changePassword,

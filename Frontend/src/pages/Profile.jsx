@@ -7,6 +7,13 @@ import {
     TabsTrigger,
     TabsContent,
 } from "@/components/ui/tabs";
+import {
+    Dialog,
+    DialogContent,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter,
+} from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { motion, useInView } from "framer-motion";
@@ -14,6 +21,8 @@ import axios from "axios";
 import { useAuth } from "@/context/AuthContext";
 import { urls } from "@/lib/api";
 import { useNavigate } from "react-router-dom";
+import { toast } from 'react-toastify';
+import "react-toastify/dist/ReactToastify.css";
 
 
 
@@ -109,8 +118,9 @@ function MovieCard({
 }
 
 export default function ProfilePage() {
-    const { user, logout } = useAuth();
+    const { user, logout, isLoggedIn } = useAuth();
     const token = user?.token || "";
+
 
     // Profile states
     const [username, setUsername] = useState("");
@@ -118,6 +128,9 @@ export default function ProfilePage() {
     const [usernameInput, setUsernameInput] = useState("");
     const [uid, setUid] = useState("");
     const [email, setEmail] = useState("");
+    const [open, setOpen] = useState(false);
+
+
 
     // Movies & groups from backend
     const [favourites, setFavourites] = useState([]);
@@ -147,6 +160,10 @@ export default function ProfilePage() {
 // Loading states
     const [sendingOtp, setSendingOtp] = useState(false);
     const [changingPassword, setChangingPassword] = useState(false);
+
+    //Deleting Account
+    const [showDeleteDialog, setShowDeleteDialog] = React.useState(false);
+
 
 
     // Fetch profile & lists
@@ -229,6 +246,34 @@ export default function ProfilePage() {
             setSavingUsername(false);
         }
     };
+// to delete a account
+
+
+
+    const handleDelete = async () => {
+        try {
+            await axios.delete(`${urls.deleteAccount}`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+
+            setShowDeleteDialog(false); // close the dialog immediately
+            localStorage.removeItem("authToken"); // or sessionStorage if that's what you use
+
+
+
+            logout();
+
+            // Redirect after a short delay for toast feedback
+            setTimeout(() => {
+                navigate("/home");
+
+            }, 5);
+            toast.success("Your account has been deleted!");
+        } catch (error) {
+            toast.error("Error deleting account. Please try again.");
+        }
+    };
+
 
     // Handlers with checks to avoid duplicates
     const addToWatchlist = async (id) => {
@@ -515,6 +560,33 @@ export default function ProfilePage() {
                 </div>
 
 
+                {/* 🔥 Delete Account Confirmation Dialog */}
+                <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                    <DialogContent className="bg-black text-yellow-400 border-yellow-400 max-w-sm">
+                        <DialogTitle>Are you sure?</DialogTitle>
+                        <DialogDescription className="text-yellow-300">
+                            Are you sure you want to delete this account? This action cannot be undone.
+                        </DialogDescription>
+                        <DialogFooter className="flex justify-end gap-2">
+                            <Button
+                                className="text-black"
+                                variant="outline"
+                                onClick={() => setShowDeleteDialog(false)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                className="bg-yellow-400 hover:bg-yellow-500 text-black"
+                                onClick={handleDelete}
+                            >
+                                Delete
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+
+
                 {/* ───────────────────────────────────────────
      CHANGE-PASSWORD (toggles with showChangePassword)
 ──────────────────────────────────────────── */}
@@ -629,13 +701,16 @@ export default function ProfilePage() {
                                     </div>
                                 </TabsContent>
                             </Tabs>
-                            {/* ---------- /TABS ---------- */}
                         </CardContent>
                     </Card>
                 )}
 
 
 
+
+
+
+                {/* ---------- /TABS ---------- */}
                 {/* Tabs */}
                 <Tabs defaultValue="favourites" className="w-full">
                     <TabsList className="grid grid-cols-3 w-full max-w-lg mx-auto border-b border-yellow-400">
@@ -751,7 +826,7 @@ export default function ProfilePage() {
                     </Button>
                     <Button
                         variant="destructive"
-                        onClick={() => alert("Delete account coming soon!")}
+                        onClick={() => setShowDeleteDialog(true)}
                     >
                         Delete Account
                     </Button>
