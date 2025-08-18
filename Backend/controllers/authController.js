@@ -1,90 +1,92 @@
-const User = require('../models/User');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const OTP = require('../models/Otpmodel');
-const generateOTP = require('../utils/generateOTP');
-const sendEmail = require('../utils/sendEmail');
-
+const User = require("../models/User");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const OTP = require("../models/Otpmodel");
+const generateOTP = require("../utils/generateOTP");
+const sendEmail = require("../utils/sendEmail");
 
 // Helper function to generate UID in format #AB12CD6
 
 function generateUID() {
-  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const numbers = '0123456789';
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const numbers = "0123456789";
 
-  const randomLetter = () => letters[Math.floor(Math.random() * letters.length)];
-  const randomNumber = () => numbers[Math.floor(Math.random() * numbers.length)];
+  const randomLetter = () =>
+    letters[Math.floor(Math.random() * letters.length)];
+  const randomNumber = () =>
+    numbers[Math.floor(Math.random() * numbers.length)];
 
   return (
-    randomLetter() + randomLetter() +  // 2 letters
-    randomNumber() + randomNumber() +  // 2 numbers
-    randomLetter() + randomLetter() +  // 2 letters
-    randomNumber()                     // 1 number
+    randomLetter() +
+    randomLetter() + // 2 letters
+    randomNumber() +
+    randomNumber() + // 2 numbers
+    randomLetter() +
+    randomLetter() + // 2 letters
+    randomNumber() // 1 number
   );
 }
 
-
 const signup = async (req, res) => {
-    const { name, email, password } = req.body;
+  const { name, email, password } = req.body;
 
-    try {
-        const existingUser = await User.findOne({ email });
-        if (existingUser) {
-            return res.status(400).json({
-                success: false,
-                message: "User already exists"
-            });
-        }
-
-        // Hash password
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        // Generate unique UID
-        let uid;
-        let uidExists = true;
-        while (uidExists) {
-            uid = generateUID();
-            const existingUID = await User.findOne({ uid });
-            if (!existingUID) uidExists = false;
-        }
-
-        // Create user with empty watchlist & favourites
-        const newUser = await User.create({
-            name,
-            email,
-            password: hashedPassword,
-            uid,
-            watchlist: [],
-            favourites: []
-        });
-
-        // ✅ Generate JWT token like in login
-        const token = jwt.sign(
-            { id: newUser._id },
-            process.env.JWT_SECRET,
-            { expiresIn: "1h" }
-        );
-
-        // ✅ Return token & user so frontend can store it immediately
-        res.status(201).json({
-            success: true,
-            message: "User registered successfully",
-            token,
-            user: {
-                id: newUser._id,
-                name: newUser.name,
-                email: newUser.email,
-                uid: newUser.uid,
-                watchlist: newUser.watchlist,
-                favourites: newUser.favourites
-            }
-        });
-
-    } catch (err) {
-        res.status(500).json({ success: false, message: "Signup failed", error: err.message });
+  try {
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: "User already exists",
+      });
     }
-};
 
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Generate unique UID
+    let uid;
+    let uidExists = true;
+    while (uidExists) {
+      uid = generateUID();
+      const existingUID = await User.findOne({ uid });
+      if (!existingUID) uidExists = false;
+    }
+
+    // Create user with empty watchlist & favourites
+    const newUser = await User.create({
+      name,
+      email,
+      password: hashedPassword,
+      uid,
+      watchlist: [],
+      favourites: [],
+    });
+    console.log("SIGNING with secret", process.env.JWT_SECRET);
+
+    // ✅ Generate JWT token like in login
+    const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, {
+      expiresIn: "1h",
+    });
+
+    // ✅ Return token & user so frontend can store it immediately
+    res.status(201).json({
+      success: true,
+      message: "User registered successfully",
+      token,
+      user: {
+        id: newUser._id,
+        name: newUser.name,
+        email: newUser.email,
+        uid: newUser.uid,
+        watchlist: newUser.watchlist,
+        favourites: newUser.favourites,
+      },
+    });
+  } catch (err) {
+    res
+      .status(500)
+      .json({ success: false, message: "Signup failed", error: err.message });
+  }
+};
 
 const login = async (req, res) => {
   const { email, password } = req.body;
@@ -101,12 +103,14 @@ const login = async (req, res) => {
     if (!isMatch) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
-
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "1h" });
+    console.log("SIGNING with secret", process.env.JWT_SECRET);
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "1h",
+    });
 
     res.json({
       token,
-      user: { id: user._id, name: user.name, email: user.email, uid: user.uid }
+      user: { id: user._id, name: user.name, email: user.email, uid: user.uid },
     });
   } catch (err) {
     console.error("Login Error:", err);
@@ -114,17 +118,18 @@ const login = async (req, res) => {
   }
 };
 
-
-
-
 // Send OTP
 const sendOTP = async (req, res) => {
   try {
     const { email } = req.body;
+    console.log("📩 Incoming OTP request for:", email);
 
     // 1️⃣ Check if user already exists
     const existingUser = await User.findOne({ email });
+    console.log("Exisitng user:", existingUser ? existingUser.email : "none");
+
     if (existingUser) {
+      console.log("⛔ User already exists, cannot send OTP");
       return res.status(400).json({
         success: false,
         message: "User already exists",
@@ -133,23 +138,37 @@ const sendOTP = async (req, res) => {
 
     // 2️⃣ Generate and save OTP
     const code = generateOTP();
+    console.log("Generated OTP:", code);
+
     const otpHash = await bcrypt.hash(code, 10);
+    console.log("🔒 OTP hashed successfully");
+
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 min expiry
 
     await OTP.create({ email, otpHash, expiresAt, used: false });
 
     // 3️⃣ Send OTP via email
-    await sendEmail(
-      email,
-      "Your Movie Night OTP Code",
-      `Your OTP code is: ${code}`
-    );
-
+    try {
+      await sendEmail(
+        email,
+        "Your Movie Night OTP Code",
+        `Your OTP code is: ${code}`
+      );
+      console.log("VERIFYING OTP FOR:", email);
+      res.status(200).json({
+        success: true,
+        message: "OTP generated and sent to your email.",
+      });
+    } catch (emailErr) {
+      console.error("❌ Email sending failed:", emailErr.message);
+      return res
+        .status(500)
+        .json({ success: false, message: "Failed to send OTP email" });
+    }
     res.status(200).json({
       success: true,
       message: "OTP generated and sent to your email.",
     });
-
   } catch (err) {
     res.status(500).json({
       message: "Failed to generate OTP",
@@ -158,14 +177,14 @@ const sendOTP = async (req, res) => {
   }
 };
 
-
-
 const verifyOTP = async (req, res) => {
   try {
     const { email, otp } = req.body;
 
     if (!email || !otp) {
-      return res.status(400).json({ success: false, message: "Email and OTP are required" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Email and OTP are required" });
     }
 
     // 1️⃣ Fetch the latest unused OTP for this email
@@ -176,7 +195,9 @@ const verifyOTP = async (req, res) => {
     }).sort({ createdAt: -1 }); // latest OTP first
 
     if (!otpRecord) {
-      return res.status(400).json({ success: false, message: "OTP expired or not found" });
+      return res
+        .status(400)
+        .json({ success: false, message: "OTP expired or not found" });
     }
 
     // 2️⃣ Always compare as strings (avoid type issues)
@@ -190,13 +211,17 @@ const verifyOTP = async (req, res) => {
     otpRecord.used = true;
     await otpRecord.save();
 
-    res.status(200).json({ success: true, message: "OTP verified successfully" });
-
+    res
+      .status(200)
+      .json({ success: true, message: "OTP verified successfully" });
   } catch (err) {
     console.error("OTP Verification Error:", err);
-    res.status(500).json({ success: false, message: "OTP verification failed", error: err.message });
+    res.status(500).json({
+      success: false,
+      message: "OTP verification failed",
+      error: err.message,
+    });
   }
 };
 
-
-module.exports = { signup, login, sendOTP, verifyOTP};
+module.exports = { signup, login, sendOTP, verifyOTP };
