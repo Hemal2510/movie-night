@@ -8,6 +8,7 @@ import Profile from "./pages/Profile";
 import PlannerHome from "@/Planner/PlannerHome";
 import ProtectedRoute from "./components_movie/ProtectedRoute";
 
+
 function App() {
   return (
     <main className="bg-black text-white min-h-screen">

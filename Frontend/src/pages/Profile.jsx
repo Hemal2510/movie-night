@@ -7,6 +7,13 @@ import {
     TabsTrigger,
     TabsContent,
 } from "@/components/ui/tabs";
+import {
+    Dialog,
+    DialogContent,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter,
+} from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { motion, useInView } from "framer-motion";
@@ -14,6 +21,9 @@ import axios from "axios";
 import { useAuth } from "@/context/AuthContext";
 import { urls } from "@/lib/api";
 import { useNavigate } from "react-router-dom";
+import { toast } from 'react-toastify';
+import "react-toastify/dist/ReactToastify.css";
+
 
 
 function MovieCard({
@@ -108,8 +118,9 @@ function MovieCard({
 }
 
 export default function ProfilePage() {
-    const { user, logout } = useAuth();
+    const { user, logout, isLoggedIn } = useAuth();
     const token = user?.token || "";
+
 
     // Profile states
     const [username, setUsername] = useState("");
@@ -117,6 +128,9 @@ export default function ProfilePage() {
     const [usernameInput, setUsernameInput] = useState("");
     const [uid, setUid] = useState("");
     const [email, setEmail] = useState("");
+    const [open, setOpen] = useState(false);
+
+
 
     // Movies & groups from backend
     const [favourites, setFavourites] = useState([]);
@@ -146,6 +160,10 @@ export default function ProfilePage() {
 // Loading states
     const [sendingOtp, setSendingOtp] = useState(false);
     const [changingPassword, setChangingPassword] = useState(false);
+
+    //Deleting Account
+    const [showDeleteDialog, setShowDeleteDialog] = React.useState(false);
+
 
 
     // Fetch profile & lists
@@ -228,6 +246,34 @@ export default function ProfilePage() {
             setSavingUsername(false);
         }
     };
+// to delete a account
+
+
+
+    const handleDelete = async () => {
+        try {
+            await axios.delete(`${urls.deleteAccount}`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+
+            setShowDeleteDialog(false); // close the dialog immediately
+            localStorage.removeItem("authToken"); // or sessionStorage if that's what you use
+
+
+
+            logout();
+
+            // Redirect after a short delay for toast feedback
+            setTimeout(() => {
+                navigate("/home");
+
+            }, 5);
+            toast.success("Your account has been deleted!");
+        } catch (error) {
+            toast.error("Error deleting account. Please try again.");
+        }
+    };
+
 
     // Handlers with checks to avoid duplicates
     const addToWatchlist = async (id) => {
@@ -306,63 +352,119 @@ export default function ProfilePage() {
             <div className="text-white p-8 text-center">Loading profile...</div>
         );
 
+    // Change password using old password
     const handleChangePasswordOld = async () => {
-        if (!oldPassword || !newPassword) return;
+        if (!oldPassword || !newPassword) return alert("Enter both old and new password");
+        console.log({ oldPassword, newPassword, token });
         setChangingPassword(true);
         try {
-            await axios.put(`${urls.profile}/change-password`, {
-                oldPassword,
-                newPassword
-            }, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await axios.put(
+                urls.changePassword,
+                { oldPassword, newPassword },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            console.log("Password change response:", res.data);
             alert("Password changed successfully!");
             setOldPassword("");
             setNewPassword("");
             setShowChangePassword(false);
-        } catch (err) {
-            console.error(err);
-            alert("Failed to change password.");
+
+        } catch (error) {
+            console.error("Failed to change password", error.response?.data || error);
+            alert(error.response?.data?.message || "Failed to change password.");
         } finally {
             setChangingPassword(false);
         }
     };
 
+// Send OTP for password reset
     const handleSendOtp = async () => {
-        if (!otpEmail) return;
+        if (!email) {
+            alert("Please enter your email address.");
+            return;
+        }
+
         setSendingOtp(true);
+
         try {
-            await axios.post(`${urls.profile}/send-otp`, { email: otpEmail });
-            alert("OTP sent!");
+            const { data } = await axios.post(urls.sendResetOtp, { email });
+
+            if (data?.success) {
+                setOtpSent(true);             // ✅ unlocks the “enter OTP” field
+                alert("OTP sent! Check your inbox.");
+            } else {
+                alert(data?.message || "Could not send OTP. Please try again.");
+            }
         } catch (err) {
-            console.error(err);
-            alert("Failed to send OTP.");
+            console.error("sendResetOtp error:", err);      // keep the dev log
+            alert(err.response?.data?.message || "Server error. Try again later.");
         } finally {
             setSendingOtp(false);
         }
     };
 
-    const handleChangePasswordOtp = async () => {
-        if (!otpCode || !otpNewPassword) return;
-        setChangingPassword(true);
+
+
+// Verify OTP for password reset
+    const handleVerifyOtp = async () => {
+        if (!otpCode || otpCode.length !== 6) {
+            alert("Enter a valid 6-digit OTP code.");
+            return;
+        }
+
+        setVerifyingOtp(true);
         try {
-            await axios.put(`${urls.profile}/change-password-otp`, {
-                otp: otpCode,
-                newPassword: otpNewPassword
-            }, {
-                headers: { Authorization: `Bearer ${token}` }
+            const { data } = await axios.post(urls.verifyPasswordOtp, {
+                email: email,  // ✅ Use 'email' from profile, not 'otpEmail'
+                otp: otpCode.toString().trim(), // ✅ Ensure string format
             });
-            alert("Password changed successfully!");
-            setOtpCode("");
-            setOtpNewPassword("");
-            setShowChangePassword(false);
+
+            if (data?.success) {  // ✅ Just check for success
+                alert("OTP verified!");
+                setOtpVerified(true);
+            } else {
+                alert(data?.message || "Invalid or expired code.");
+            }
         } catch (err) {
-            console.error(err);
-            alert("Failed to change password.");
+            console.error("Failed to verify OTP:", err);
+            alert(err.response?.data?.message || "Server error—try again.");
         } finally {
-            setChangingPassword(false);
+            setVerifyingOtp(false);
         }
     };
+
+// Change password using OTP
+    const handleChangePasswordOtp = async () => {
+        if (!otpCode || !otpNewPassword) return;
+        try {
+            setChangingPassword(true);
+            const res = await axios.post(urls.resetPassword, {
+                email: email,
+                otp: otpCode,
+                newPassword: otpNewPassword,
+            });
+            if(res.data.success){
+                alert("Password changed successfully!");
+                // Reset all OTP-related states
+                setOtpCode("");
+                setOtpNewPassword("");
+                setOtpSent(false);
+                setOtpVerified(false);
+                setOtpEmail(""); // optional
+                setShowChangePassword(false)            }
+        } catch (error) {
+            console.error("Failed to reset password", error);
+            alert(error.response?.data?.message || "Failed to change password.");
+        } finally {
+            setChangingPassword(false);
+
+        }
+    };
+
+
+
+
+
 
 
     return (
@@ -458,6 +560,36 @@ export default function ProfilePage() {
                 </div>
 
 
+                {/* 🔥 Delete Account Confirmation Dialog */}
+                <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                    <DialogContent className="bg-black text-yellow-400 border-yellow-400 max-w-sm">
+                        <DialogTitle>Are you sure?</DialogTitle>
+                        <DialogDescription className="text-yellow-300">
+                            Are you sure you want to delete this account? This action cannot be undone.
+                        </DialogDescription>
+                        <DialogFooter className="flex justify-end gap-2">
+                            <Button
+                                className="text-black"
+                                variant="outline"
+                                onClick={() => setShowDeleteDialog(false)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                className="bg-yellow-400 hover:bg-yellow-500 text-black"
+                                onClick={handleDelete}
+                            >
+                                Delete
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+
+
+                {/* ───────────────────────────────────────────
+     CHANGE-PASSWORD (toggles with showChangePassword)
+──────────────────────────────────────────── */}
                 {showChangePassword && (
                     <Card className="bg-gray-900 border-yellow-400 mt-6 max-w-md mx-auto">
                         <CardContent>
@@ -465,17 +597,18 @@ export default function ProfilePage() {
                                 Change Password
                             </h3>
 
+                            {/* ---------- TABS ---------- */}
                             <Tabs defaultValue="oldPassword" className="w-full">
                                 <TabsList className="flex border-b border-yellow-400">
                                     <TabsTrigger value="oldPassword" className="text-yellow-400">
-                                        Old Password
+                                        Old&nbsp;Password
                                     </TabsTrigger>
                                     <TabsTrigger value="otp" className="text-yellow-400">
                                         OTP
                                     </TabsTrigger>
                                 </TabsList>
 
-                                {/* Old Password Form */}
+                                {/* —— OLD-PASSWORD FORM —— */}
                                 <TabsContent value="oldPassword" className="mt-4">
                                     <div className="flex flex-col space-y-3">
                                         <input
@@ -497,29 +630,34 @@ export default function ProfilePage() {
                                             onClick={handleChangePasswordOld}
                                             disabled={changingPassword}
                                         >
-                                            {changingPassword ? "Saving..." : "Change Password"}
+                                            {changingPassword ? "Saving…" : "Change Password"}
                                         </Button>
                                     </div>
                                 </TabsContent>
 
-                                {/* OTP Form */}
-                                <TabsContent value="otp" className="mt-4">
+                                {/* —— OTP FLOW —— */}
+                                <TabsContent value="otp" className="mt-4" forceMount>
                                     <div className="flex flex-col space-y-3">
-                                        {!otpSent ? (
+                                        {/* STEP 1 • send code */}
+                                        {!otpSent && (
                                             <Button
                                                 className="bg-yellow-400 text-black hover:bg-yellow-500"
                                                 onClick={handleSendOtp}
                                                 disabled={sendingOtp}
                                             >
-                                                {sendingOtp ? "Sending..." : "Send OTP to your email"}
+                                                {sendingOtp ? "Sending…" : "Send OTP to your email"}
                                             </Button>
-                                        ) : !otpVerified ? (
+                                        )}
+
+                                        {/* STEP 2 • verify code */}
+                                        {otpSent && !otpVerified && (
                                             <>
                                                 <input
                                                     type="text"
                                                     placeholder="Enter OTP"
                                                     value={otpCode}
                                                     onChange={(e) => setOtpCode(e.target.value)}
+                                                    maxLength={6}
                                                     className="border border-yellow-400 rounded px-2 py-1 bg-black text-yellow-400"
                                                 />
                                                 <div className="flex space-x-2">
@@ -528,18 +666,21 @@ export default function ProfilePage() {
                                                         onClick={handleVerifyOtp}
                                                         disabled={verifyingOtp}
                                                     >
-                                                        {verifyingOtp ? "Verifying..." : "Verify OTP"}
+                                                        {verifyingOtp ? "Verifying…" : "Verify OTP"}
                                                     </Button>
                                                     <Button
                                                         className="bg-gray-700 text-yellow-400 hover:bg-gray-600"
                                                         onClick={handleSendOtp}
                                                         disabled={sendingOtp}
                                                     >
-                                                        {sendingOtp ? "Resending..." : "Resend OTP"}
+                                                        {sendingOtp ? "Resending…" : "Resend OTP"}
                                                     </Button>
                                                 </div>
                                             </>
-                                        ) : (
+                                        )}
+
+                                        {/* STEP 3 • set new password */}
+                                        {otpVerified && (
                                             <>
                                                 <input
                                                     type="password"
@@ -553,7 +694,7 @@ export default function ProfilePage() {
                                                     onClick={handleChangePasswordOtp}
                                                     disabled={changingPassword}
                                                 >
-                                                    {changingPassword ? "Saving..." : "Change Password"}
+                                                    {changingPassword ? "Saving…" : "Change Password"}
                                                 </Button>
                                             </>
                                         )}
@@ -568,6 +709,8 @@ export default function ProfilePage() {
 
 
 
+
+                {/* ---------- /TABS ---------- */}
                 {/* Tabs */}
                 <Tabs defaultValue="favourites" className="w-full">
                     <TabsList className="grid grid-cols-3 w-full max-w-lg mx-auto border-b border-yellow-400">
@@ -683,7 +826,7 @@ export default function ProfilePage() {
                     </Button>
                     <Button
                         variant="destructive"
-                        onClick={() => alert("Delete account coming soon!")}
+                        onClick={() => setShowDeleteDialog(true)}
                     >
                         Delete Account
                     </Button>
