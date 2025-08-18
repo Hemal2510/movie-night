@@ -183,7 +183,9 @@ const PlannerHome = () => {
                     <p className="text-l text-gray-600">
                       Admin: {group.admin.name}
                     </p>
-                    <p className="text-l text-gray-600">Group ID: {group.id}</p>
+                    <p className="text-l text-gray-600">
+                      Group ID: {group.customId}
+                    </p>
                     {group.description && (
                       <p className="italic text-gray-500 mt-2">
                         "{group.description}"
@@ -191,7 +193,7 @@ const PlannerHome = () => {
                     )}
                   </div>
                   <Button
-                    onClick={() => navigate(`/planner/group/${group.id}`)}
+                    onClick={() => navigate(`/planner/group/${group.customId}`)}
                     className="mt-auto bg-yellow-400 text-black w-full hover:bg-yellow-200"
                   >
                     View Group
