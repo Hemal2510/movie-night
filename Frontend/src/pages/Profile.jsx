@@ -196,6 +196,7 @@ export default function ProfilePage() {
         } else if (Array.isArray(groupsRes.data.data)) {
           groupsData = groupsRes.data.data;
         }
+
         setGroups(groupsData);
 
         // Create sets for quick lookup
@@ -754,7 +755,7 @@ export default function ProfilePage() {
               ) : (
                 groups.map((group) => (
                   <motion.div
-                    key={group.id}
+                    key={group._id}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.97 }}
                     className="bg-black/60 border border-yellow-400 rounded-xl p-4 shadow-lg flex flex-col justify-between"

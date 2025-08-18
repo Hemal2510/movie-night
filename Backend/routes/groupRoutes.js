@@ -4,7 +4,13 @@ const Group = require("../models/Group");
 const User = require("../models/User");
 
 function generateGroupId() {
-  return "grp-" + Math.floor(10000 + Math.random() * 90000);
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const randomLetters =
+    letters.charAt(Math.floor(Math.random() * 26)) +
+    letters.charAt(Math.floor(Math.random() * 26));
+
+  const randomNumbers = Math.floor(100 + Math.random() * 900);
+  return `GRP-${randomLetters}${randomNumbers}`;
 }
 router.post("/create", async (req, res) => {
   try {
@@ -39,10 +45,8 @@ router.get("/fetch-groups", async (req, res) => {
     const userId = req.user.id;
     const groups = await Group.find({
       $or: [{ admin: userId }, { members: userId }],
-    })
-
-      .populate("admin", "name email uid")
-      .populate("members", "name email uid");
+    }).populate("admin", "name email uid");
+    //.populate("members", "name email uid");
     res.json({ groups });
   } catch (err) {
     res
