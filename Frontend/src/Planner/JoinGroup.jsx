@@ -1,28 +1,43 @@
 import React, { useEffect, useState } from "react";
+import axios from "axios";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
-// Mock group data (replace with API response)
-const mockGroups = [
-  { id: "G12345", name: "Weekend Movie Club", admin: "Aishani" },
-  { id: "G54321", name: "Chill Fridays", admin: "Hemal" },
-  { id: "G67890", name: "Tamil Gang", admin: "Ravi" },
-];
-
-// Mock join requests (will come from backend later)
-const mockRequests = [
-  { id: "G12345", name: "Weekend Movie Club", status: "Pending" },
-  { id: "G54321", name: "Chill Fridays", status: "Accepted" },
-  { id: "G99999", name: "Old Club", status: "Rejected" },
-];
-
 export default function JoinGroup() {
+  const [groups, setGroups] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [debouncedTerm, setDebouncedTerm] = useState("");
+  const [joinRequests, setJoinRequests] = useState([]);
+
+  const storedUser = JSON.parse(localStorage.getItem("user"));
+  const token = storedUser?.token;
+
+  useEffect(() => {
+    const fetchGroups = async () => {
+      try {
+        const res = await axios.get("/api/groups/fetch-groups", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        let groupsData = [];
+        if (Array.isArray(res.data)) {
+          groupsData = res.data;
+        } else if (Array.isArray(res.data.groups)) {
+          groupsData = res.data.groups;
+        } else if (Array.isArray(res.data.data)) {
+          groupsData = res.data.data;
+        }
+        setGroups(groupsData);
+      } catch (err) {
+        console.error("Error fetching groups:", err);
+      }
+    };
+
+    fetchGroups();
+  }, [token]);
 
   // Debounce logic (500ms)
   useEffect(() => {
@@ -38,12 +53,34 @@ export default function JoinGroup() {
       setSearchResults([]);
       return;
     }
-    const results = mockGroups.filter((group) =>
-      group.name.toLowerCase().includes(debouncedTerm.toLowerCase()) ||
-      group.id.toLowerCase().includes(debouncedTerm.toLowerCase())
-    );
-    setSearchResults(results);
-  }, [debouncedTerm]);
+    const fetchSearchResults = async () => {
+      try {
+        const res = await axios.get(
+          `/api/groups/search?query=${debouncedTerm}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        let resultsData = [];
+        if (Array.isArray(res.data)) {
+          resultsData = res.data;
+        } else if (Array.isArray(res.data.groups)) {
+          resultsData = res.data.groups;
+        } else if (Array.isArray(res.data.data)) {
+          resultsData = res.data.data;
+        }
+
+        console.log("parsed results", resultsData);
+
+        setSearchResults(resultsData);
+        console.log("search API raw response: ", res.data);
+      } catch (err) {
+        console.error("Error fetching groups:", err);
+        setSearchResults([]);
+      }
+    };
+    fetchSearchResults();
+  }, [debouncedTerm, token]);
 
   return (
     <div className="p-6 max-w-3xl mx-auto  ">
@@ -64,15 +101,19 @@ export default function JoinGroup() {
           />
 
           {searchResults.length === 0 && debouncedTerm ? (
-            <p className="text-muted-foreground">No groups found for "{debouncedTerm}"</p>
+            <p className="text-muted-foreground">
+              No groups found for "{debouncedTerm}"
+            </p>
           ) : (
             searchResults.map((group) => (
-              <Card key={group.id} className="mb-3">
+              <Card key={group._id} className="mb-3">
                 <CardContent className="p-4">
                   <div className="flex justify-between items-center">
                     <div>
                       <p className="font-semibold text-lg">{group.name}</p>
-                      <p className="text-sm text-muted-foreground">Group ID: {group.id}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Group ID: {group.customId}
+                      </p>
                       <p className="text-sm">Admin: {group.admin}</p>
                     </div>
                     <Button variant="default">Join</Button>
@@ -85,16 +126,20 @@ export default function JoinGroup() {
 
         {/* My Requests Tab */}
         <TabsContent value="requests">
-          {mockRequests.length === 0 ? (
-            <p className="text-muted-foreground">You haven’t sent any join requests yet.</p>
+          {joinRequests.length === 0 ? (
+            <p className="text-muted-foreground">
+              You haven’t sent any join requests yet.
+            </p>
           ) : (
-            mockRequests.map((req) => (
+            joinRequests.map((req) => (
               <Card key={req.id} className="mb-3">
                 <CardContent className="p-4">
                   <div className="flex justify-between items-center">
                     <div>
                       <p className="font-semibold text-lg">{req.name}</p>
-                      <p className="text-sm text-muted-foreground">Group ID: {req.id}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Group ID: {req.id}
+                      </p>
                     </div>
                     <Badge
                       variant={

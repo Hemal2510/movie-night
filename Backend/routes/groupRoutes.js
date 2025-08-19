@@ -54,6 +54,24 @@ router.get("/fetch-groups", async (req, res) => {
       .json({ error: "Error fetching groups", details: err.message });
   }
 });
+
+router.get("/search", async (req, res) => {
+  const { query } = req.query;
+  if (!query) return res.json([]);
+
+  try {
+    const groups = await Group.find({
+      $or: [
+        { customId: { $regex: query, $options: "i" } },
+        { name: { $regex: query, $options: "i" } },
+      ],
+    }).limit(10);
+    res.json(groups);
+  } catch (err) {
+    console.error("Error searching groups:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
 router.post("/join/:groupId", async (req, res) => {
   try {
     const groupId = req.params.groupId;
