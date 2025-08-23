@@ -46,7 +46,7 @@ function MovieCard({
         className="w-16 h-24 rounded object-cover shadow-md"
       />
       <div className="flex-1">
-        <h4 className="text-lg font-semibold">{movie.title}</h4>
+        <h4 className="text-lg font-semibold text-yellow-400">{movie.title}</h4>
         <p className="text-yellow-400 text-sm">
           ⭐ {movie.vote_average?.toFixed(1)}
         </p>
